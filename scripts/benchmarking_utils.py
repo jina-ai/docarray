@@ -1,8 +1,12 @@
+import argparse
 import functools
 from time import perf_counter
+
+import h5py
+
+from docarray import Document, DocumentArray
 from typing import Iterable
 
-from docarray import Document
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -49,14 +53,14 @@ def find_by_vector(da, query, limit):
     return da.find(query, limit=limit)
 
 
-def get_docs(X_tr):
+def get_docs(train):
     return [
         Document(
+            id=str(i),
             embedding=x,
-            # tensor=np.random.rand(*tensor_shape),
             tags={'i': int(i)},
         )
-        for i, x in enumerate(X_tr)
+        for i, x in enumerate(train)
     ]
 
 
@@ -168,3 +172,77 @@ def plot_results(
     # ax1.legend(fontsize=15)
     # ax2.legend(fontsize=15)
     plt.savefig('benchmark.svg')
+
+
+def load_sift_dataset(k):
+    dataset_path = './sift-128-euclidean.hdf5'
+    dataset = h5py.File(dataset_path, 'r')
+    train = dataset['train']
+    test = dataset['test']
+
+    docs = get_docs(train)
+    vector_queries = [x for x in test]
+    ground_truth = [x[:k] for x in dataset['neighbors'][0 : len(vector_queries)]]
+
+    return docs, vector_queries, ground_truth
+
+
+def load_random_dataset(n_dim):
+    dataset = np.random.rand(1000_000, n_dim)
+    docs = get_docs(dataset)
+    vector_queries = [np.random.rand(n_dim) for _ in range(1000)]
+
+    return docs, vector_queries
+
+
+def get_configuration_storage_backends(n_dim):
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--default-hnsw',
+        help='Whether to use default HNSW configurations',
+        action='store_true',
+    )
+
+    args = parser.parse_args()
+
+    if args.default_hnsw:
+        storage_backends = [
+            ('memory', None),
+            ('sqlite', None),
+            (
+                'annlite',
+                {'n_dim': n_dim},
+            ),
+            ('qdrant', {'n_dim': n_dim, 'scroll_batch_size': 8}),
+            ('weaviate', {'n_dim': n_dim}),
+            ('elasticsearch', {'n_dim': n_dim}),
+        ]
+    else:
+        storage_backends = [
+            ('memory', None),
+            ('sqlite', None),
+            (
+                'annlite',
+                {
+                    'n_dim': n_dim,
+                    'ef_construction': 100,
+                    'ef_search': 100,
+                    'max_connection': 16,
+                },
+            ),
+            (
+                'qdrant',
+                {'n_dim': n_dim, 'scroll_batch_size': 8, 'ef_construct': 100, 'm': 16},
+            ),
+            (
+                'weaviate',
+                {
+                    'n_dim': n_dim,
+                    'ef': 100,
+                    'ef_construction': 100,
+                    'max_connections': 16,
+                },
+            ),
+            ('elasticsearch', {'n_dim': n_dim, 'ef_construction': 100, 'm': 16}),
+        ]
+    return storage_backends

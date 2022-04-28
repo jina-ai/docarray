@@ -1,4 +1,3 @@
-import argparse
 import random
 
 import pandas as pd
@@ -6,7 +5,6 @@ import pandas as pd
 from docarray import DocumentArray
 from rich.console import Console
 from rich.table import Table
-import h5py
 import numpy as np
 
 from benchmarking_utils import (
@@ -21,67 +19,14 @@ from benchmarking_utils import (
     recall_from_numpy,
     save_benchmark_df,
     plot_results,
+    get_configuration_storage_backends,
+    load_sift_dataset,
+    load_sift_dataset,
 )
 
 
-def get_configuration_storage_backends(argparse):
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '--default-hnsw',
-        help='Whether to use default HNSW configurations',
-        action='store_true',
-    )
-
-    args = parser.parse_args()
-
-    if args.default_hnsw:
-        storage_backends = [
-            ('weaviate', {'n_dim': D}),
-            (
-                'annlite',
-                {'n_dim': D},
-            ),
-            ('qdrant', {'n_dim': D, 'scroll_batch_size': 8}),
-            ('elasticsearch', {'n_dim': D}),
-            ('sqlite', None),
-            ('memory', None),
-        ]
-    else:
-        storage_backends = [
-            (
-                'weaviate',
-                {'n_dim': D, 'ef': 100, 'ef_construction': 100, 'max_connections': 16},
-            ),
-            (
-                'annlite',
-                {
-                    'n_dim': D,
-                    'ef_construction': 100,
-                    'ef_search': 100,
-                    'max_connection': 16,
-                },
-            ),
-            (
-                'qdrant',
-                {'n_dim': D, 'scroll_batch_size': 8, 'ef_construct': 100, 'm': 16},
-            ),
-            ('elasticsearch', {'n_dim': D, 'ef_construction': 100, 'm': 16}),
-            ('sqlite', None),
-            ('memory', None),
-        ]
-    return storage_backends
-
-
 def run_benchmark(
-    X_tr,
-    X_te,
-    dataset,
-    n_index_values,
-    n_vector_queries,
-    n_query,
-    storage_backends,
-    K,
-    D,
+    storage_backends, n_index_values, index_docs, vector_queries, ground_truth
 ):
     table = Table(
         title=f'DocArray Benchmarking n_index={n_index_values[-1]} n_query={n_query} D={D} K={K}'
@@ -106,14 +51,13 @@ def run_benchmark(
     find_by_vector_values = {str(n_index): [] for n_index in n_index_values}
     create_values = {str(n_index): [] for n_index in n_index_values}
 
-    console.print(f'Reading dataset')
-    docs = get_docs(X_tr)
-    docs_to_delete = random.sample(docs, n_query)
-    docs_to_update = random.sample(docs, n_query)
-    vector_queries = [x for x in X_te]
-    ground_truth = [x[0:K] for x in dataset['neighbors'][0 : len(vector_queries)]]
-
     for idx, n_index in enumerate(n_index_values):
+        docs = index_docs[:n_index]
+
+        console.print(f'Reading dataset')
+        query_docs = random.sample([d.id for d in docs], n_query)
+        docs_to_delete = random.sample(docs, n_query)
+        docs_to_update = random.sample(docs, n_query)
         for backend, config in storage_backends:
             try:
                 console.print('\nBackend:', backend.title())
@@ -126,16 +70,11 @@ def run_benchmark(
                 create_time, _ = create(da, docs)
                 # for n_q in n_query:
                 console.print(f'\treading {n_query} docs ...')
-                read_time, _ = read(
-                    da,
-                    random.sample([d.id for d in docs], n_query),
-                )
+                read_time, _ = read(da, query_docs)
                 console.print(f'\tupdating {n_query} docs ...')
                 update_time, _ = update(da, docs_to_update)
-                console.print(f'\tdeleting {n_query} docs ...')
-                delete_time, _ = delete(da, [d.id for d in docs_to_delete])
                 console.print(
-                    f'\tfinding {n_query} docs by vector averaged {n_vector_queries} times ...'
+                    f'\tfinding {n_query} docs by vector averaged {len(vector_queries)} times ...'
                 )
                 if backend == 'memory':
                     find_by_vector_time, aux = find_by_vector(
@@ -168,6 +107,9 @@ def run_benchmark(
                 find_by_condition_time, _ = find_by_condition(
                     da, {'tags__i': {'$eq': 0}}
                 )
+
+                console.print(f'\tdeleting {n_query} docs ...')
+                delete_time, _ = delete(da, [d.id for d in docs_to_delete])
                 if idx == len(n_index_values) - 1:
                     table.add_row(
                         backend.title(),
@@ -211,33 +153,16 @@ def run_benchmark(
 
 
 if __name__ == "__main__":
-
-    # Parameters settable by the user
     n_query = 1
+    D = 128
     K = 10
-    DATASET_PATH = 'sift-128-euclidean.hdf5'
-    np.random.seed(123)
-
-    # Variables gathered from the dataset
-    dataset = h5py.File(DATASET_PATH, 'r')
-    X_tr = dataset['train']
-    X_te = dataset['test']
-    D = X_tr.shape[1]
-    n_index_values = [len(X_tr)]
-    n_vector_queries = len(X_te)
-
     # Benchmark
-    storage_backends = get_configuration_storage_backends(argparse)
+    storage_backends = get_configuration_storage_backends(D)
+    docs, vector_queries, ground_truth = load_sift_dataset(K)
+    n_index_values = [len(docs)]
+
     find_by_vector_values, create_values, benchmark_df = run_benchmark(
-        X_tr,
-        X_te,
-        dataset,
-        n_index_values,
-        n_vector_queries,
-        n_query,
-        storage_backends,
-        K,
-        D,
+        storage_backends, n_index_values, docs, vector_queries, ground_truth
     )
     plot_results(
         find_by_vector_values, storage_backends, create_values, plot_legend=False
