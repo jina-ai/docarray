@@ -36,7 +36,7 @@ def get_configuration_storage_backends(argparse):
 
     if args.default_hnsw:
         storage_backends = [
-            ('weaviate', {'n_dim': D}),
+                ('weaviate', {'n_dim': D, 'distance': 'l2-squared'}),
             (
                 'annlite',
                 {'n_dim': D},
@@ -50,7 +50,7 @@ def get_configuration_storage_backends(argparse):
         storage_backends = [
             (
                 'weaviate',
-                {'n_dim': D, 'ef': 100, 'ef_construction': 100, 'max_connections': 16},
+                {'n_dim': D, 'ef': 100, 'ef_construction': 100, 'max_connections': 16, 'distance': 'l2-squared'},
             ),
             (
                 'annlite',
