@@ -168,7 +168,7 @@ def get_full_version() -> Dict:
     return {
         'docarray': __version__,
         'protobuf': google.protobuf.__version__,
-        'proto-backend': api_implementation._default_implementation_type,
+        'proto-backend': api_implementation.Type(),
         'python': platform.python_version(),
         'platform': platform.system(),
         'platform-release': platform.release(),
