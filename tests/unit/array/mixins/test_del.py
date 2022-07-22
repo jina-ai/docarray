@@ -105,3 +105,32 @@ def test_del_da_attribute():
 
     for d in da:
         assert d.embedding is None
+
+
+def test_del_secondary_index_annlite():
+
+    n_dim = 3
+    da = DocumentArray(
+        storage='annlite',
+        config={'n_dim': n_dim, 'metric': 'Euclidean'},
+        secondary_indices_configs={'@c': {'n_dim': 2}},
+    )
+
+    with da:
+        da.extend(
+            [
+                Document(
+                    id=str(i),
+                    embedding=i * np.ones(n_dim),
+                    chunks=[
+                        Document(id=str(i) + '_0', embedding=[i, i]),
+                        Document(id=str(i) + '_1', embedding=[i, i]),
+                    ],
+                )
+                for i in range(10)
+            ]
+        )
+
+    del da['0']
+    assert len(da) == 9
+    assert len(da._secondary_indices['@c']) == 18

@@ -504,3 +504,31 @@ def test_elastic_id_filter(storage, config, limit):
         result = da.find(query=query, limit=limit)
         assert all([r.id in id for r in result])
         assert len(result) == limit
+
+
+def test_find_secondary_index_annlite():
+    n_dim = 3
+    da = DocumentArray(
+        storage='annlite',
+        config={'n_dim': n_dim, 'metric': 'Euclidean'},
+        secondary_indices_configs={'@c': {'n_dim': 2}},
+    )
+
+    with da:
+        da.extend(
+            [
+                Document(
+                    id=str(i),
+                    embedding=i * np.ones(n_dim),
+                    chunks=[
+                        Document(id=str(i) + '_0', embedding=[i, i]),
+                        Document(id=str(i) + '_1', embedding=[i, i]),
+                    ],
+                )
+                for i in range(3)
+            ]
+        )
+
+    closest_docs = da.find(query=np.array([3, 3]), secondary_index='@c')
+
+    assert (closest_docs[0].embedding == [2, 2]).all()

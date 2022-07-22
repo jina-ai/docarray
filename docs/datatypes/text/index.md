@@ -191,3 +191,157 @@ print(q.matches[:, ('text', 'scores__jaccard')])
 {'value': 0.6666666666666666, 'ref_id': 'f47f7448709811ec960a1e008a366d49'}, 
 {'value': 0.7142857142857143, 'ref_id': 'f47f7448709811ec960a1e008a366d49'}]]
 ```
+
+
+## Searching at chunk level with secondary index
+
+One can create applications that search at chunk level using a secondary index. 
+Imagine you want an application that searches at a sentences granularity and returns the document title of the document
+containing the sentence closest to the query. For example, you can have a database of lyrics of songs and you want to
+search the song title of a song from which you might remember a small part of it (likely the chorus).
+
+```python
+song1_title = 'Take On Me' 
+
+song1 = """
+#A-ha
+Talking away
+I don't know what I'm to say
+I'll say it anyway
+Today is another day to find you
+Shying away
+I'll be coming for your love. OK?
+
+Take on me (take on me)
+Take me on (take on me)
+I'll be gone
+In a day or two
+
+So needless to say
+Of odds and ends
+But I'll be stumbling away
+Slowly learning that life is OK.
+Say after me,
+"It's no better to be safe than sorry."
+
+Take on me (take on me)
+Take me on (take on me)
+I'll be gone
+In a day or two
+
+Oh, things that you say. Yeah.
+Is it life or just to play my worries away?
+You're all the things I've got to remember
+You're shying away
+I'll be coming for you anyway
+
+Take on me (take on me)
+Take me on (take on me)
+I'll be gone
+In a day
+"""
+
+song2_title = 'The trooper' 
+
+song2 = """
+You'll take my life, but I'll take yours too
+You'll fire your musket, but I'll run you through
+So when you're waiting for the next attack
+You'd better stand, there's no turning back
+The bugle sounds, the charge begins
+But on this battlefield, no one wins
+The smell of acrid smoke and horses' breath
+As I plunge on into certain death
+The horse, he sweats with fear, we break to run
+The mighty roar of the Russian guns
+And as we race towards the human wall
+The screams of pain as my comrades fall
+We hurdle bodies that lay on the ground
+And the Russians fire another round
+We get so near, yet so far away
+We won't live to fight another day
+We get so close, near enough to fight
+When a Russian gets me in his sights
+He pulls the trigger and I feel the blow
+A burst of rounds take my horse below
+And as I lay there gazing at the sky
+My body's numb and my throat is dry
+And as I lay forgotten and alone
+Without a tear, I draw my parting groan
+"""
+```
+
+We can now create one document for each of the songs, containing as chunks the song sentences.
+
+```python
+from docarray import Document, DocumentArray
+doc1 = Document(chunks = [ Document(text=line) for line in song1.split('\n')], song_title = song1_title)
+doc2 = Document(chunks = [ Document(text=line) for line in song2.split('\n')], song_title = song2_title)
+da = DocumentArray()
+da.extend([doc1, doc2])
+```
+
+Now we can build a feature vector for each line of each song. Here we use a very simple Bag of Words descriptor as 
+feature vector.
+
+```python
+import re
+
+def build_tokenizer(token_pattern=r"(?u)\b\w\w+\b"):
+    token_pattern = re.compile(token_pattern)
+    return token_pattern.findall
+
+def bow_feature_vector(d, vocab, tokenizer):
+    embedding = np.zeros(len(vocab)+2)
+    tokens = tokenizer(d.text)
+    for token in tokens:
+        if token in vocab:
+            embedding[vocab.get(token)] +=1
+        
+    return embedding
+
+
+tokenizer = build_tokenizer()
+vocab = da['@c'].get_vocabulary()
+for d in da['@c']:
+    d.embedding=bow_feature_vector(d, vocab, tokenizer)
+```
+
+Once we have the data prepared, we can store it into a DocumentArray that supports a secondary index.
+
+```buildoutcfg
+n_features = len(vocab)+2
+n_dim = 3
+da_backend=DocumentArray(
+    storage='annlite',
+    config={'data_path':'./annlite_data',
+            'n_dim': n_dim, 
+            'metric': 'Cosine'},
+    secondary_indices_configs={'@c': {'n_dim': n_features}},
+)
+
+with da_backend:
+    da_backend.extend(da)
+```
+
+Given a query such as `into death` we want to search which song contained a similar sentence.
+
+```python
+def find_song_name_from_song_snippet(query: Document,
+                                     da_backend) -> str:
+    similar_items = da_backend.find(query=query,
+                                    secondary_index = '@c',
+                                    limit=10)[0]
+    most_similar_docs = similar_items[0]
+    return da_backend[most_similar_docs.parent_id].tags
+
+query = Document(text='into death')
+query.embedding = bow_feature_vector(query, vocab, tokenizer)
+
+similar_items = find_song_name_from_song_snippet(query, da_backend)
+print(similar_items)
+```
+Will print 
+```text
+{'song_title': 'The trooper'}
+```

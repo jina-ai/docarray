@@ -81,6 +81,7 @@ class GetSetDelMixin(BaseGetSetDelMixin):
         """
         if self._doc_id_exists(_id):
             self._client.delete(index=self._config.index_name, id=_id)
+
         self._refresh(self._config.index_name)
 
     def _clear_storage(self):

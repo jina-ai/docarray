@@ -392,3 +392,43 @@ def test_zero_embeddings(da_cls, config, start_storage):
     for d in da:
         # scipy sparse row-vector can only be a (1, m) not squeezible
         assert d.embedding.shape == (1, 6)
+
+
+def test_getset_secondary_index_annlite():
+
+    n_dim = 3
+    da = DocumentArray(
+        storage='annlite',
+        config={'n_dim': n_dim, 'metric': 'Euclidean'},
+        secondary_indices_configs={'@c': {'n_dim': 2}},
+    )
+
+    with da:
+        da.extend(
+            [
+                Document(
+                    id=str(i),
+                    embedding=i * np.ones(n_dim),
+                    chunks=[
+                        Document(id=str(i) + '_0', embedding=[i, i]),
+                        Document(id=str(i) + '_1', embedding=[i, i]),
+                    ],
+                )
+                for i in range(3)
+            ]
+        )
+    with da:
+        da[0] = Document(
+            embedding=-1 * np.ones(n_dim),
+            chunks=[
+                Document(id='c_0', embedding=[-1, -1]),
+                Document(id='c_1', embedding=[-2, -2]),
+            ],
+        )
+
+    assert (da[0].embedding == -1 * np.ones(n_dim)).all()
+    assert (da[0].chunks[0].embedding == [-1, -1]).all()
+    assert (da[0].chunks[1].embedding == [-2, -2]).all()
+
+    assert (da._secondary_indices['@c']['c_0'].embedding == [-1, -1]).all()
+    assert (da._secondary_indices['@c']['c_1'].embedding == [-2, -2]).all()

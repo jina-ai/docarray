@@ -4,7 +4,7 @@ from .helper import OffsetMapping
 from ..base.getsetdel import BaseGetSetDelMixin
 from ..base.helper import Offset2ID
 from ...memory import DocumentArrayInMemory
-from .... import Document
+from .... import Document, DocumentArray
 
 
 class GetSetDelMixin(BaseGetSetDelMixin):
@@ -19,15 +19,29 @@ class GetSetDelMixin(BaseGetSetDelMixin):
         return doc
 
     def _set_doc_by_id(self, _id: str, value: 'Document'):
+
+        if self._secondary_indices:
+            for selector, da in self._secondary_indices.items():
+                old_ids = DocumentArray(self[_id])[
+                    selector, 'id'
+                ]  # hack to get the Document['@c'] without having to do Document.chunks
+                print(da.embeddings)
+                with da:
+                    del da[old_ids]
+                    da.extend(DocumentArray(value)[selector])  # same hack here
+                print(da.embeddings)
+
         if _id != value.id:
             self._del_doc_by_id(_id)
 
         value.embedding = self._map_embedding(value.embedding)
         docs = DocumentArrayInMemory([value])
+
         self._annlite.update(docs)
 
     def _del_doc_by_id(self, _id: str):
-        self._annlite.delete([_id])
+        # delete the root document
+        self._del_docs_by_ids([_id])
 
     def _clear_storage(self):
         self._annlite.clear()
@@ -38,6 +52,12 @@ class GetSetDelMixin(BaseGetSetDelMixin):
             self._set_doc_by_id(_id, doc)
 
     def _del_docs_by_ids(self, ids):
+
+        if self._secondary_indices:
+            for selector, da in self._secondary_indices.items():
+                ids_secondary_index = self[ids][selector, 'id']
+                da._del_docs_by_ids(ids_secondary_index)
+
         self._annlite.delete(ids)
 
     def _load_offset2ids(self):

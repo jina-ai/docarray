@@ -19,6 +19,15 @@ class SequenceLikeMixin(BaseSequenceLikeMixin):
         self._annlite.index(docs)
         self._offset2ids.extend([doc.id for doc in docs])
 
+        if self._secondary_indices:
+            for selector, da in self._secondary_indices.items():
+                docs_selector = docs[selector]
+                if len(docs_selector) > 0:
+                    da.extend(docs_selector)
+
+    def append(self, value: 'Document'):
+        self.extend([value])
+
     def __del__(self) -> None:
         if not self._persist:
             self._offset2ids.clear()
