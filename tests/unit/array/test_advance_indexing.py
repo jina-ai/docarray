@@ -6,6 +6,7 @@ from docarray.array.storage.weaviate import WeaviateConfig
 from docarray.array.annlite import AnnliteConfig
 from docarray.array.qdrant import QdrantConfig
 from docarray.array.elastic import ElasticConfig
+from docarray.array.clickhouse import ClickHouseConfig
 
 
 @pytest.fixture
@@ -27,6 +28,7 @@ def indices():
         ('annlite', AnnliteConfig(n_dim=123)),
         ('qdrant', QdrantConfig(n_dim=123)),
         ('elasticsearch', ElasticConfig(n_dim=123)),
+        ('clickhouse', ClickHouseConfig(n_dim=123)),
     ],
 )
 def test_getter_int_str(docs, storage, config, start_storage):
@@ -276,6 +278,7 @@ def test_sequence_str(docs, storage, config, start_storage):
         ('annlite', AnnliteConfig(n_dim=123)),
         ('qdrant', QdrantConfig(n_dim=123)),
         ('elasticsearch', ElasticConfig(n_dim=123)),
+        ('clickhouse', ClickHouseConfig(n_dim=123)),
     ],
 )
 def test_docarray_list_tuple(docs, storage, config, start_storage):
@@ -502,10 +505,19 @@ def test_advance_selector_mixed(storage):
 
 
 @pytest.mark.parametrize(
-    'storage', ['memory', 'sqlite', 'weaviate', 'annlite', 'qdrant', 'elasticsearch']
+    'storage',
+    [
+        'memory',
+        'sqlite',
+        'weaviate',
+        'annlite',
+        'qdrant',
+        'elasticsearch',
+        'clickhouse',
+    ],
 )
 def test_single_boolean_and_padding(storage, start_storage):
-    if storage in ('annlite', 'weaviate', 'qdrant', 'elasticsearch'):
+    if storage in ('annlite', 'weaviate', 'qdrant', 'elasticsearch', 'clickhouse'):
         da = DocumentArray(storage=storage, config={'n_dim': 10})
     else:
         da = DocumentArray(storage=storage)

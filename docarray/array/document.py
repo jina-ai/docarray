@@ -10,10 +10,12 @@ if TYPE_CHECKING:
     from .annlite import DocumentArrayAnnlite
     from .weaviate import DocumentArrayWeaviate
     from .elastic import DocumentArrayElastic
+    from .clickhouse import DocumentArrayClickHouse
     from .storage.sqlite import SqliteConfig
     from .storage.annlite import AnnliteConfig
     from .storage.weaviate import WeaviateConfig
     from .storage.elastic import ElasticConfig
+    from .storage.clickhouse import ClickHouseConfig
 
 
 class DocumentArray(AllMixins, BaseDocumentArray):
@@ -120,6 +122,16 @@ class DocumentArray(AllMixins, BaseDocumentArray):
         """Create a Elastic-powered DocumentArray object."""
         ...
 
+    @overload
+    def __new__(
+        cls,
+        _docs: Optional['DocumentArraySourceType'] = None,
+        storage: str = 'clickhouse',
+        config: Optional[Union['ClickHouseConfig', Dict]] = None,
+    ) -> 'DocumentArrayClickHouse':
+        """Create a ClickHouse-powered DocumentArray object."""
+        ...
+
     def __enter__(self):
         return self
 
@@ -156,6 +168,10 @@ class DocumentArray(AllMixins, BaseDocumentArray):
                 from .elastic import DocumentArrayElastic
 
                 instance = super().__new__(DocumentArrayElastic)
+            elif storage == 'clickhouse':
+                from .clickhouse import DocumentArrayClickHouse
+
+                instance = super().__new__(DocumentArrayClickHouse)
 
             else:
                 raise ValueError(f'storage=`{storage}` is not supported.')

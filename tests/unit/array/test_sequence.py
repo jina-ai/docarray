@@ -10,9 +10,11 @@ from docarray.array.sqlite import DocumentArraySqlite
 from docarray.array.storage.sqlite import SqliteConfig
 from docarray.array.weaviate import DocumentArrayWeaviate
 from docarray.array.elastic import DocumentArrayElastic
+from docarray.array.clickhouse import DocumentArrayClickHouse
 from docarray.array.storage.qdrant import QdrantConfig
 from docarray.array.storage.weaviate import WeaviateConfig
 from docarray.array.storage.elastic import ElasticConfig
+from docarray.array.storage.clickhouse import ClickHouseConfig
 import numpy as np
 
 from tests.conftest import tmpfile
@@ -26,6 +28,7 @@ from tests.conftest import tmpfile
         (DocumentArrayWeaviate, lambda: WeaviateConfig(n_dim=1)),
         (DocumentArrayQdrant, lambda: QdrantConfig(n_dim=1)),
         (DocumentArrayElastic, lambda: ElasticConfig(n_dim=1)),
+        (DocumentArrayClickHouse, lambda: ClickHouseConfig(n_dim=1)),
     ],
 )
 def test_insert(da_cls, config, start_storage):
@@ -48,6 +51,7 @@ def test_insert(da_cls, config, start_storage):
         (DocumentArrayWeaviate, lambda: WeaviateConfig(n_dim=1)),
         (DocumentArrayQdrant, lambda: QdrantConfig(n_dim=1)),
         (DocumentArrayElastic, lambda: ElasticConfig(n_dim=1)),
+        (DocumentArrayClickHouse, lambda: ClickHouseConfig(n_dim=1)),
     ],
 )
 def test_append_extend(da_cls, config, start_storage):
@@ -81,6 +85,7 @@ def update_config_inplace(config, tmpdir, tmpfile):
         ('weaviate', {'n_dim': 3, 'name': 'Weaviate'}),
         ('qdrant', {'n_dim': 3, 'collection_name': 'qdrant'}),
         ('elasticsearch', {'n_dim': 3, 'index_name': 'elasticsearch'}),
+        ('clickhouse', {'n_dim': 3, 'table_name': 'Test'}),
     ],
 )
 def test_context_manager_from_disk(storage, config, start_storage, tmpdir, tmpfile):
