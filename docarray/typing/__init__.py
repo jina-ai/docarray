@@ -12,6 +12,13 @@ from typing import (
     ForwardRef,
 )
 
+import sys
+
+if sys.version_info >= (3, 9):
+    from typing import Annotated
+else:
+    from typing_extensions import Annotated
+
 if TYPE_CHECKING:
     import scipy.sparse
     import tensorflow
@@ -65,12 +72,28 @@ if TYPE_CHECKING:
     ]
 
 
-Image = TypeVar(
-    'Image',
-    str,
-    ForwardRef('np.ndarray'),
-    ForwardRef('PILImage'),
-)
+class Image:
+    def __class_getitem__(cls, item):
+        if isinstance(item, tuple):
+            if len(item) == 2:
+                width, height, axis = *item, -1
+            elif len(item) == 3:
+                width, height, axis = item
+            else:
+                raise ValueError('Invalid inputs for Image type')
+        elif isinstance(item, int):
+            width, height, axis = item, None, -1
+        else:
+            raise ValueError('Invalid inputs for Image type')
+        return Annotated[Image, width, height, axis]
+
+
+# Image = TypeVar(
+#     'Image',
+#     str,
+#     ForwardRef('np.ndarray'),
+#     ForwardRef('PILImage'),
+# )
 Text = TypeVar('Text', bound=str)
 Audio = TypeVar('Audio', str, ForwardRef('np.ndarray'))
 Video = TypeVar('Video', str, ForwardRef('np.ndarray'))

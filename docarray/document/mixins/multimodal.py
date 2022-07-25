@@ -79,9 +79,28 @@ class MultiModalMixin:
                         }
                         root.chunks.append(chunk)
                 else:
-                    raise TypeError(
-                        f'Unsupported type annotation on field `{field.type._name}`'
-                    )
+                    # this is obviously not generally correct logic here
+                    # and also f*cking ugly, equally as obviuosly
+                    # so this is just to make the POC work
+                    import sys
+
+                    if sys.version_info >= (3, 9):
+                        from typing import get_type_hints, get_args
+                    else:
+                        from typing_extensions import get_type_hints, get_args
+
+                    main_type = get_args(field.type)[0]
+                    doc, attribute_type = cls._from_obj(attribute, field.type, field)
+                    multi_modal_schema[key] = {
+                        'attribute_type': attribute_type,
+                        'type': main_type.__name__,
+                        'position': len(root.chunks),
+                    }
+                    root.chunks.append(doc)
+                # else:
+                #     raise TypeError(
+                #         f'Unsupported type annotation on field `{field.type._name}`'
+                #     )
             else:
                 doc, attribute_type = cls._from_obj(attribute, field.type, field)
                 multi_modal_schema[key] = {

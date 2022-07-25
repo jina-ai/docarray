@@ -22,6 +22,15 @@ from typing import (
 from .getter import *
 from .setter import *
 
+from functools import partial
+
+import sys
+
+if sys.version_info >= (3, 9):
+    from typing import get_type_hints, get_args
+else:
+    from typing_extensions import get_type_hints, get_args
+
 if TYPE_CHECKING:
     import numpy as np
     from ..typing import T
@@ -112,6 +121,11 @@ def _is_field(f) -> bool:
 
 _TYPES_REGISTRY = {
     Image: lambda x: field(setter=image_setter, getter=image_getter, _source_field=x),
+    'Image_': lambda height, width, axis, x: field(
+        setter=partial(image_setter_, height, width, axis),
+        getter=image_getter,
+        _source_field=x,
+    ),
     Text: lambda x: field(setter=text_setter, getter=text_getter, _source_field=x),
     Audio: lambda x: field(setter=audio_setter, getter=audio_getter, _source_field=x),
     JSON: lambda x: field(setter=json_setter, getter=json_getter, _source_field=x),
@@ -205,6 +219,17 @@ def dataclass(
         # wrap init so `MMDoc(document)` is possible
         if getattr(decorated_cls, '__init__'):
             decorated_cls.__init__ = deco(decorated_cls.__init__)
+
+        type_hints = get_type_hints(cls, include_extras=True)
+        for name, type_hint in type_hints.items():
+            type_args = get_args(type_hint)
+            if type_args:
+                main_type, extras = type_args[0], type_args[1:]
+                if main_type == Image:
+                    f = decorated_cls.__dataclass_fields__[name]
+                    decorated_cls.__dataclass_fields__[name] = type_var_map['Image_'](
+                        *extras, f
+                    )
 
         for key, f in decorated_cls.__dataclass_fields__.items():
             if _is_field(f):

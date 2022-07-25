@@ -27,6 +27,27 @@ def image_setter(value) -> 'Document':
     return doc
 
 
+def image_setter_(width, height, channel_axis, value) -> 'Document':
+    from docarray import Document
+
+    doc = Document(modality='image')
+
+    if isinstance(value, str):
+        doc.uri = value
+        doc._metadata['image_type'] = 'uri'
+        doc.load_uri_to_image_tensor(width, height, channel_axis)
+    elif isinstance(value, np.ndarray):
+        doc.tensor = value
+        doc._metadata['image_type'] = 'ndarray'
+    else:
+        from PIL.Image import Image
+
+        if isinstance(value, Image):
+            doc.tensor = np.array(value)
+            doc._metadata['image_type'] = 'PIL'
+    return doc
+
+
 def text_setter(value) -> 'Document':
     from docarray import Document
 
