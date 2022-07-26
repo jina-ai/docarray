@@ -1,12 +1,11 @@
 from abc import ABC
-import pytest
-import numpy as np
 
-from docarray import DocumentArray, Document
-from docarray.array.storage.redis.backend import RedisConfig, BackendMixin
+import numpy as np
+import pytest
+from docarray import DocumentArray
 from docarray.array.storage.base.helper import Offset2ID
-from docarray.array.storage.base.getsetdel import BaseGetSetDelMixin
 from docarray.array.storage.memory import GetSetDelMixin, SequenceLikeMixin
+from docarray.array.storage.redis.backend import BackendMixin, RedisConfig
 
 
 class StorageMixins(BackendMixin, GetSetDelMixin, SequenceLikeMixin, ABC):
@@ -42,6 +41,15 @@ def da_redis():
 
 
 @pytest.mark.parametrize('distance', ['L2', 'IP', 'COSINE'])
+@pytest.mark.parametrize(
+    'method,initial_cap,ef_construction,block_size',
+    [
+        ('HNSW', None, None, None),
+        ('HNSW', 10, 250, None),
+        ('HNSW', 10, 250, 1000000),
+        ('FLAT', 10, 250, 1000000),
+    ],
+)
 @pytest.mark.parametrize('tag_indices', [['attr3'], ['attr3', 'attr4']])
 @pytest.mark.parametrize(
     'columns',
@@ -51,13 +59,29 @@ def da_redis():
         [('attr1', 'double'), ('attr2', 'long')],
     ],
 )
-def test_init_storage(distance, tag_indices, columns, start_storage):
+@pytest.mark.parametrize('index_text', [True, False])
+def test_init_storage(
+    distance,
+    tag_indices,
+    columns,
+    method,
+    initial_cap,
+    ef_construction,
+    block_size,
+    index_text,
+    start_storage,
+):
     cfg = RedisConfig(
         n_dim=128,
         distance=distance,
         flush=True,
         tag_indices=tag_indices,
         columns=columns,
+        method=method,
+        initial_cap=initial_cap,
+        ef_construction=ef_construction,
+        block_size=block_size,
+        index_text=index_text,
         redis_config={'decode_responses': True},
     )
     redis_da = DocumentArrayDummy(storage='redis', config=cfg)
@@ -82,6 +106,10 @@ def test_init_storage(distance, tag_indices, columns, start_storage):
             redis_da._client.ft().info()['attributes'][i + len(tag_indices) + 1][5]
             == type_convert[redis_da._config.columns[i][1]]
         )
+
+    if index_text:
+        assert redis_da._client.ft().info()['attributes'][-1][1] == 'text'
+        assert redis_da._client.ft().info()['attributes'][-1][5] == 'TEXT'
 
 
 def test_init_storage_update_schema(start_storage):
