@@ -162,7 +162,8 @@ class BackendMixin(BaseBackendMixin):
     def _get_offset2ids_meta(self) -> List[str]:
         if not self._client.exists(self._offset2id_key):
             return []
-        return self._client.lrange(self._offset2id_key, 0, -1)
+        ids = self._client.lrange(self._offset2id_key, 0, -1)
+        return [id.decode() for id in ids]
 
     def _update_offset2ids_meta(self):
         """Update the offset2ids in redis"""

@@ -188,4 +188,4 @@ def test_offset2ids_meta(ids, da_redis, start_storage):
     assert da_redis._get_offset2ids_meta() == []
     da_redis._offset2ids = Offset2ID(ids)
     da_redis._update_offset2ids_meta()
-    assert da_redis._get_offset2ids_meta() == [bytes(id, 'utf-8') for id in ids]
+    assert da_redis._get_offset2ids_meta() == ids
