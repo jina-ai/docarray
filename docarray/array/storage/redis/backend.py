@@ -136,6 +136,9 @@ class BackendMixin(BaseBackendMixin):
         # TODO whether to add schema to column (elastic does but qdrant doesn't)
         for col, coltype in self._config.columns:
             schema.append(self._map_column(col, coltype))
+
+        if self._config.index_text:
+            schema.append(TextField('text'))
         return schema
 
     def _doc_id_exists(self, doc_id):
