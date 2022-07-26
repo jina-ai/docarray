@@ -1,3 +1,4 @@
+(mm-construct)=
 # Construct
 
 ```{tip}
@@ -21,7 +22,20 @@ class MyMultiModalDoc:
 m = MyMultiModalDoc(avatar='test-1.jpeg', description='hello, world')
 ```
 
-**Each field is a modality.** The above example contains two modalities: image and text. 
+**Each field is a modality.** The above example contains two modalities: image and text.
+
+```{Caution}
+
+Be careful when assigning names to your modalities.
+ 
+Do not use names that are properties of {class}`~docarray.document.Document`, such as
+`text`, `tensor`, `embedding`, etc.
+Instead, use more specific names that fit your domain, such as `avatar` and `description` in the example above.
+
+If there is a conflict between the name of a modality and a property of {class}`~docarray.document.Document`,
+no guarantees about the behavior while {ref}`accessing <mm-access-doc>` such a name can be made.
+
+```
 
 To convert it into a `Document` object, simply:
 
@@ -32,7 +46,9 @@ d = Document(m)
 d.summary()
 ```
 
-One can see that this creates a Document object with two chunks nested.
+This creates a Document object with two chunks:
+
+````{dropdown} Nested structure (chunks)
 
 ```text
 📄 Document: f3b193bbe8403c3ce1599b82f941f68a
@@ -59,7 +75,9 @@ One can see that this creates a Document object with two chunks nested.
         ╰──────────────────────┴───────────────────────────────────────────────────────╯
 ```
 
-To convert a Document object back to a `MyMultiModalDoc` object,
+````
+
+To convert a Document object back to a `MyMultiModalDoc` object, do:
 
 ```python
 m = MyMultiModalDoc(d)
@@ -162,6 +180,7 @@ d = Document(m)
 
 One can look at the structure of `d` via `d.summary()`:
 
+````{dropdown} Nested structure (chunks)
 
 ```text
 📄 Document: 90c744c5155c2356d27f8c91955f70f7
@@ -197,6 +216,9 @@ One can look at the structure of `d` via `d.summary()`:
         ╰──────────────┴───────────────────────────────────────────────────────────────╯
 ```
 
+````
+
+(mm-annotation)=
 ## Behavior of field annotation
 
 This section explains the behavior of field annotations in details.

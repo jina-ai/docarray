@@ -21,9 +21,13 @@ example
 ```
 
 
-DocArray's dataclass is a high-level API for representing a multimodal document using {ref}`nested Document structure<recursive-nested-document>`. It follows the design and idiom of the standard [Python dataclass](https://docs.python.org/3/library/dataclasses.html), allowing users to represent a complicated multimodal document intuitively and process it easily via DocArray Document/DocumentArray API. 
+DocArray's dataclass is a high-level API for representing a multimodal document using
+{ref}`nested Document structure<recursive-nested-document>`.
+It follows the design and idiom of the standard [Python dataclass](https://docs.python.org/3/library/dataclasses.html),
+allowing users to represent a complicated multimodal document intuitively and process it easily via DocArray Document/DocumentArray API. 
 
-In a nutshell, DocArray provides a decorator `@dataclass` and a set of multimodal types in `docarray.typing`, which allows the left multimodal document to be represented as the right code snippet:
+In a nutshell, DocArray provides a decorator `@dataclass` and a set of multimodal types in `docarray.typing`,
+which allows the multimodal document on the left to be represented as the code snippet on the right:
 
 ::::{grid} 2
 :gutter: 1
@@ -60,6 +64,8 @@ a = WPArticle(
         'column': 'By the Way - A Post Travel Destination',
     },
 )
+
+doc = Document(a)
 ```
 
 
@@ -68,47 +74,16 @@ a = WPArticle(
 ::::
 
 
-Converting a dataclass to Document is as simple as `Document(a)`. Via {meth}`~docarray.array.mixins.plot.PlotMixin.summary`, we can see it is represented as a Document object with the following nested structure:
+Under the hood, `doc` is represented as a {class}`~docarray.Document` containing a {property}`~docarray.Document.chunks`
+each, for `banner`, `headline` and `meta`.
 
-```text
-📄 Document: cb25ccea837e8e2b33ef1e050bae1de2
-└── 💠 Chunks
-    ├── 📄 Document: df56a39e24f441108742b533c8710705
-    │   ╭──────────────┬───────────────────────────────────────────────────────────────╮
-    │   │ Attribute    │ Value                                                         │
-    │   ├──────────────┼───────────────────────────────────────────────────────────────┤
-    │   │ parent_id    │ cb25ccea837e8e2b33ef1e050bae1de2                              │
-    │   │ granularity  │ 1                                                             │
-    │   │ tensor       │ <class 'numpy.ndarray'> in shape (198, 254, 3), dtype: uint8  │
-    │   │ mime_type    │ image/png                                                     │
-    │   │ uri          │ dog-cat-flight.png                                            │
-    │   │ modality     │ image                                                         │
-    │   ╰──────────────┴───────────────────────────────────────────────────────────────╯
-    ├── 📄 Document: 828f9c346a9f5862a55ea75188b1ae19
-    │   ╭─────────────┬────────────────────────────────────────────────────────────────╮
-    │   │ Attribute   │ Value                                                          │
-    │   ├─────────────┼────────────────────────────────────────────────────────────────┤
-    │   │ parent_id   │ cb25ccea837e8e2b33ef1e050bae1de2                               │
-    │   │ granularity │ 1                                                              │
-    │   │ text        │ Everything to know about flying with pets, from picking your   │
-    │   │             │ seats to keeping your animal calm                              │
-    │   │ modality    │ text                                                           │
-    │   ╰─────────────┴────────────────────────────────────────────────────────────────╯
-    └── 📄 Document: a76803e1bcddd0960e1a01d47132c064
-        ╭─────────────┬────────────────────────────────────────────────────────────────╮
-        │ Attribute   │ Value                                                          │
-        ├─────────────┼────────────────────────────────────────────────────────────────┤
-        │ parent_id   │ cb25ccea837e8e2b33ef1e050bae1de2                               │
-        │ granularity │ 1                                                              │
-        │ tags        │ {'meta': {'author': 'Nathan Diller', 'column': 'By the Way - A │
-        │             │ Post Travel Destination'}}                                     │
-        ╰─────────────┴────────────────────────────────────────────────────────────────╯
-```
+But the beauty of DocArray's dataclass is that as a user you don't have to reason about `chunks` at all.
+Instead, you define your data structure using your own words, and reason in the domain you are most familiar with.
 
 Before we continue, let's first spend some time to understand the problem and the rationale behind this feature.
 
 
-## What is multimodal?
+## What is multi-modality?
 
 
 ```{tip}

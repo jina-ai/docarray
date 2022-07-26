@@ -1,12 +1,122 @@
 # Access Modality
 
-```{tip}
-It is strongly recommended to go through the {ref}`access-elements` section first before continuing.
+After {ref}`constructing a multi-modal Document or DocumentArray <mm-construct>`, you can directly access your custom-defined
+modalities by their names.
+
+```{admonition} Return types
+:class: seealso
+
+Accessing a modality always returns a Document or a DocumentArray, instead of directly returning the data stored in them.
+
+If you are interested in the principles behind this design decision, you can learn more [here](TODO LINK TO BLOG POST).
 ```
 
-Accessing modality means accessing the sub-Documents corresponding to a dataclass field. 
+(mm-access-doc)=
+## Document level access
 
-In the last chapter, we learned how to represent a multimodal document via `@dataclass` and type annotation from `docarray.typing`. We also learned that a multimodal dataclass can be converted into a `Document` object easily. That means if we have a list of multimodal dataclass objects, we can build a DocumentArray out of them:
+Even after conversion to {class}`~docarray.document.Document`, custom-defines modalities can be accessed by their names, returning a
+{class}`~docarray.document.Document` or, for list-types, a {class}`~docarray.array.document.DocumentArray`.
+
+```python
+from docarray import Document, dataclass
+from typing import List
+from docarray.typing import Image, Text
+
+
+@dataclass
+class MMDoc:
+    banner: Image
+    paragraphs: List[Text]
+
+
+doc = Document(
+    MMDoc(
+        banner='test.jpg',
+        paragraphs=['This is a paragraph', 'this is another paragraph'],
+    )
+)
+
+print(doc.banner)  # returns a Document with the test.jpg image tensor
+print(doc.banner.tensor)  # returns the image tensor
+print(doc.paragraphs)  # returns a DocumentArray with one Document per paragraph
+print(doc.paragraphs.texts)  # returns the paragraph texts
+```
+
+
+```text
+<Document ('id', 'parent_id', 'granularity', 'tensor', 'mime_type', 'uri', '_metadata', 'modality') at eaccc9c573c07f13b7ee8aa04a83c9eb>
+[[[255 255 255]
+  [255 255 255]
+  [255 255 255]]]
+<DocumentArray (length=2) at 140540453339296>
+['This is a paragraph', 'this is another paragraph']
+```
+
+The returned Documents (or DocumentArrays) can be directly used to store additional information about the modality:
+
+```python
+import torch, torchvision
+
+model = torchvision.models.resnet50(pretrained=True)
+banner_tensor = torch.tensor(doc.banner.tensor).transpose(0, 2).unsqueeze(0)
+doc.banner.embedding = model(banner_tensor)
+```
+
+### Select nested fields
+
+Nested field, coming from {ref}`nested dataclasses <mm-annotation>`, can be accessed by selecting the outer field,
+and then selecting the inner field:
+
+```python
+from docarray import dataclass, Document
+from docarray.typing import Image, Text
+
+
+@dataclass
+class InnerDoc:
+    description: Text
+    banner: Image = 'test-1.jpeg'
+
+
+@dataclass
+class OuterDoc:
+    feature_image: InnerDoc
+    website: str = 'https://jina.ai'
+
+
+doc = Document(OuterDoc(feature_image=InnerDoc(description='this is a description')))
+print(
+    doc.feature_image.description
+)  # returns a Document with 'this is a description' as text
+print(doc.feature_image.description.text)  # returns 'this is a description'
+```
+
+```text
+<Document ('id', 'parent_id', 'granularity', 'text', 'modality') at 94de1bef2fc8010ff4fe86791a671c44>
+this is a description
+```
+
+## DocumentArray level access
+
+Custom modalities can be accessed through the familiar {ref}`selector syntax <access-elements>`.
+
+Like all selectors, a selector for a multi-modal attribute begins with `@`.
+The fact that a custom modality is accessed is denoted through the addition of a `.`, coming before a list of modality names:
+
+```text
+@.[field1, field2, ...]
+^^ ~~~~~~  ~~~~~~
+||   |       |
+||   |-------|
+||       |
+||       | --- indicate the field of dataclass (modality name)
+||
+|| ------ indicate the start of modality selector
+|
+| ---- indicate the start of selector
+```
+
+Selecting a modality form a DocumentArray always results in another DocumentArray:
 
 ```python
 from docarray import Document, dataclass, DocumentArray
@@ -33,55 +143,12 @@ da = DocumentArray(
 da.summary()
 ```
 
-```text
-╭────────────── Documents Summary ───────────────╮
-│                                                │
-│   Length                    2                  │
-│   Homogenous Documents      True               │
-│   Has nested Documents in   ('chunks',)        │
-│   Common Attributes         ('id', 'chunks')   │
-│   Multimodal dataclass      True               │
-│                                                │
-╰────────────────────────────────────────────────╯
-╭──────────────────────── Attributes Summary ────────────────────────╮
-│                                                                    │
-│   Attribute   Data type         #Unique values   Has empty value   │
-│  ────────────────────────────────────────────────────────────────  │
-│   chunks      ('ChunkArray',)   2                False             │
-│   id          ('str',)          2                False             │
-│                                                                    │
-╰────────────────────────────────────────────────────────────────────╯
-```
-
-A natural question would be, how do we select those Documents that correspond to `MMDoc.banner`? 
-
-This chapter describes how to select the sub-documents that correspond to a modality from a DocumentArray. So let me reiterate the logic here: when calling `Document()` to build Document object from a dataclass object, each field in that dataclass will generate a sub-document nested under `.chunks` or even `.chunks.chunks.chunks` at arbitrary level (except primitive types, which are stored in the `tags` of the root Document). To process a dataclass field via existing DocArray API/Jina/Hub Executor, we need a way to accurately select those sub-documents from the nested structure, which is the purpose of this chapter. 
-
-## Selector Syntax
-
-Following the syntax convention described in {ref}`access-elements`, a modality selector also starts with `@`, it uses `.` to indicate the field of the dataclass. Selecting a DocumentArray always results in another DocumentArray.
-
-```text
-@.[field1, field2, ...]
-^^ ~~~~~~  ~~~~~~
-||   |       |
-||   |-------|
-||       |
-||       | --- indicate the field of dataclass
-||
-|| ------ indicate the start of modality selector
-|
-| ---- indicate the start of selector
-```
-
-Use the above DocumentArray as an example,
-
-````{tab} Select Documents corresponding to .banner 
+`````{tab} Select Documents corresponding to .banner 
 
 ```python
 da['@.[banner]']
 ```
-
+````{dropdown} Output
 ```text
 ╭───────────────────────────── Documents Summary ──────────────────────────────╮
 │                                                                              │
@@ -107,14 +174,18 @@ da['@.[banner]']
 ╰───────────────────────────────────────────────────────────────────╯
 ```
 
-
 ````
 
-````{tab} Select Documents corresponding to .description 
+
+`````
+
+`````{tab} Select Documents corresponding to .description 
 
 ```python
 da['@.[description]']
 ```
+
+````{dropdown} Output
 
 ```text
 ╭───────────────────────────── Documents Summary ──────────────────────────────╮
@@ -139,21 +210,19 @@ da['@.[description]']
 ╰────────────────────────────────────────────────────────────────╯
 ```
 
-
 ````
+
+`````
 
 ### Select multiple fields
 
-You can select multiple fields by including them in the square brackets, separated by a comma `,`.
-
-````{tab} Select Documents correspond to two fields
+You can select multiple fields by including them in the square brackets, separated by a comma `,`:
 
 ```python
 da['@.[description, banner]']
 ```
-````
 
-````{tab} Result
+````{dropdown} Output
 
 
 ```text
@@ -187,7 +256,7 @@ da['@.[description, banner]']
 
 ### Slice dataclass objects
 
-Remember each dataclass object corresponds to one Document object, you can first slice the DocumentArray before selecting the field. Specifically, you can do
+Remember each dataclass object corresponds to one Document object, you can first slice the DocumentArray before selecting the field. Specifically, you can do:
 
 ```text
 @r[slice].[field1, field2, ...]
@@ -195,17 +264,15 @@ Remember each dataclass object corresponds to one Document object, you can first
 
 where `slice` can be any slice syntax accepted in {ref}`access-elements`.
 
-For example, to select the sub-Document `.banner` for only the first Document,
-
-````{tab} Select .banner of the first dataclass  
+For example, to select the sub-Document `.banner` for only the first Document:
+ 
 
 ```python
 da['@r[:1].[banner]']
 ```
 
-````
 
-````{tab} Result
+````{dropdown} Output
 
 ```text
 ╭───────────────────────────── Documents Summary ──────────────────────────────╮
