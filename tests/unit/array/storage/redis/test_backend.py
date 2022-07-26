@@ -126,6 +126,11 @@ def test_init_storage_update_schema(start_storage):
     assert redis_da._client.ft().info()['attributes'][1][1] == b'attr2'
 
 
+def test_init_storage_empty_config(start_storage):
+    with pytest.raises(ValueError):
+        redis_da = DocumentArrayDummy(storage='redis')
+
+
 @pytest.mark.parametrize(
     'id',
     [

@@ -56,7 +56,7 @@ class BackendMixin(BaseBackendMixin):
         **kwargs,
     ):
         if not config:
-            raise RedisConfig()
+            raise ValueError('Empty config is not allowed for Redis storage')
         elif isinstance(config, dict):
             config = dataclass_from_dict(RedisConfig, config)
 
