@@ -65,6 +65,12 @@ class BackendMixin(BaseBackendMixin):
         if config.method not in ['HNSW', 'FLAT']:
             raise ValueError(f'Method {config.method} not supported')
 
+        if (
+            'decode_responses' in config.redis_config
+            and config.redis_config['decode_responses']
+        ):
+            config.redis_config['decode_responses'] = False
+
         self._offset2id_key = 'offset2id'
         self._config = config
         self.n_dim = self._config.n_dim

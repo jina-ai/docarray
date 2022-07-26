@@ -24,12 +24,12 @@ class DocumentArrayDummy(StorageMixins, DocumentArray):
 
 
 type_convert = {
-    'int': 'NUMERIC',
-    'float': 'NUMERIC',
-    'double': 'NUMERIC',
-    'long': 'NUMERIC',
-    'str': 'TEXT',
-    'bytes': 'TEXT',
+    'int': b'NUMERIC',
+    'float': b'NUMERIC',
+    'double': b'NUMERIC',
+    'long': b'NUMERIC',
+    'str': b'TEXT',
+    'bytes': b'TEXT',
 }
 
 
@@ -60,6 +60,16 @@ def da_redis():
     ],
 )
 @pytest.mark.parametrize('index_text', [True, False])
+@pytest.mark.parametrize(
+    'redis_config',
+    [
+        {'decode_responses': True},
+        {'decode_responses': False},
+        {'retry_on_timeout': True},
+        {'decode_responses': True, 'retry_on_timeout': True},
+        {},
+    ],
+)
 def test_init_storage(
     distance,
     tag_indices,
@@ -69,6 +79,7 @@ def test_init_storage(
     ef_construction,
     block_size,
     index_text,
+    redis_config,
     start_storage,
 ):
     cfg = RedisConfig(
@@ -82,34 +93,32 @@ def test_init_storage(
         ef_construction=ef_construction,
         block_size=block_size,
         index_text=index_text,
-        redis_config={'decode_responses': True},
+        redis_config=redis_config,
     )
     redis_da = DocumentArrayDummy(storage='redis', config=cfg)
 
     assert redis_da._client.info()['tcp_port'] == redis_da._config.port
-    assert redis_da._client.ft().info()['attributes'][0][1] == 'embedding'
-    assert redis_da._client.ft().info()['attributes'][0][5] == 'VECTOR'
+    assert redis_da._client.ft().info()['attributes'][0][1] == b'embedding'
+    assert redis_da._client.ft().info()['attributes'][0][5] == b'VECTOR'
 
     for i in range(len(tag_indices)):
-        assert (
-            redis_da._client.ft().info()['attributes'][i + 1][1]
-            == redis_da._config.tag_indices[i]
+        assert redis_da._client.ft().info()['attributes'][i + 1][1] == bytes(
+            redis_da._config.tag_indices[i], 'utf-8'
         )
-        assert redis_da._client.ft().info()['attributes'][i + 1][5] == 'TEXT'
+        assert redis_da._client.ft().info()['attributes'][i + 1][5] == b'TEXT'
 
     for i in range(len(columns)):
-        assert (
-            redis_da._client.ft().info()['attributes'][i + len(tag_indices) + 1][1]
-            == redis_da._config.columns[i][0]
-        )
+        assert redis_da._client.ft().info()['attributes'][i + len(tag_indices) + 1][
+            1
+        ] == bytes(redis_da._config.columns[i][0], 'utf-8')
         assert (
             redis_da._client.ft().info()['attributes'][i + len(tag_indices) + 1][5]
             == type_convert[redis_da._config.columns[i][1]]
         )
 
     if index_text:
-        assert redis_da._client.ft().info()['attributes'][-1][1] == 'text'
-        assert redis_da._client.ft().info()['attributes'][-1][5] == 'TEXT'
+        assert redis_da._client.ft().info()['attributes'][-1][1] == b'text'
+        assert redis_da._client.ft().info()['attributes'][-1][5] == b'TEXT'
 
 
 def test_init_storage_update_schema(start_storage):
