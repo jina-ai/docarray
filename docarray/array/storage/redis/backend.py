@@ -18,16 +18,16 @@ if TYPE_CHECKING:
 @dataclass
 class RedisConfig:
     n_dim: int
-    host: Optional[str] = field(default='localhost')
-    port: Optional[int] = field(default=6379)
-    flush: Optional[bool] = field(default=False)
-    update_schema: Optional[bool] = field(default=True)
-    distance: Optional[str] = field(default='COSINE')
+    host: str = field(default='localhost')
+    port: int = field(default=6379)
+    flush: bool = field(default=False)
+    update_schema: bool = field(default=True)
+    distance: str = field(default='COSINE')
     redis_config: Dict[str, Any] = field(default_factory=dict)
-    index_text: Optional[bool] = field(default=False)
+    index_text: bool = field(default=False)
     tag_indices: List[str] = field(default_factory=list)
-    batch_size: Optional[int] = field(default=64)
-    method: Optional[str] = field(default='HNSW')
+    batch_size: int = field(default=64)
+    method: str = field(default='HNSW')
     initial_cap: Optional[int] = None
     ef_construction: Optional[int] = None
     m: Optional[int] = None
