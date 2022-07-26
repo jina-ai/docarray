@@ -154,15 +154,6 @@ class BackendMixin(BaseBackendMixin):
         return embedding.astype(np.float32).tobytes()
 
     def _get_offset2ids_meta(self) -> List[str]:
-        """Return the offset2ids stored in redis
-
-        :return: a list containing ids
-
-        :raises ValueError: error is raised if index _client is not found or no offsets are found
-        """
-        if not self._client:
-            raise ValueError('Redis client does not exist')
-
         if not self._client.exists(self._offset2id_key):
             return []
         return self._client.lrange(self._offset2id_key, 0, -1)
