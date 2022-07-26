@@ -149,14 +149,23 @@ def test_doc_id_exists(id, da_redis, start_storage):
         ([1, 2, 3, 4, 5]),
         ([1.1, 1.2, 1.3]),
         ([1, 2.0, 3.0, 4]),
+        None,
     ],
 )
 def test_map_embedding(array, start_storage):
-    cfg = RedisConfig(n_dim=len(array))
+    if array is None:
+        cfg = RedisConfig(n_dim=3)
+    else:
+        cfg = RedisConfig(n_dim=len(array))
+
     redis_da = DocumentArrayDummy(storage='redis', config=cfg)
     embedding = redis_da._map_embedding(array)
     assert type(embedding) == bytes
-    assert np.allclose(np.frombuffer(embedding, dtype=np.float32), np.array(array))
+
+    if array is None:
+        assert np.allclose(np.frombuffer(embedding, dtype=np.float32), np.zeros((3)))
+    else:
+        assert np.allclose(np.frombuffer(embedding, dtype=np.float32), np.array(array))
 
 
 @pytest.mark.parametrize(
