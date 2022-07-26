@@ -90,12 +90,9 @@ class BackendMixin(BaseBackendMixin):
         if self._config.flush:
             client.flushdb()
 
-        # redis client will throw error if index does not exist
         if self._config.update_schema:
-            try:
+            if len(client.execute_command('FT._LIST')) > 0:
                 client.ft().dropindex('idx')
-            except ResponseError:
-                pass
 
         if self._config.flush or self._config.update_schema:
             schema = self._build_schema_from_redis_config()
